@@ -8,28 +8,29 @@ class AddCredentialDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Add Credential")
-        self.geometry("300x300")
-
-        self.username_label = ctk.CTkLabel(self, text="Enter username:")
+        self.geometry("400x400")
+        self.configure(fg_color="#444444")  # Ansprechenderes Schwarz
+        
+        self.username_label = ctk.CTkLabel(self, text="Enter username:", text_color="white")
         self.username_label.pack(pady=5)
-
-        self.username_entry = ctk.CTkEntry(self)
+        
+        self.username_entry = ctk.CTkEntry(self, width=250)
         self.username_entry.pack(pady=5)
-
-        self.password_label = ctk.CTkLabel(self, text="Enter password:")
+        
+        self.password_label = ctk.CTkLabel(self, text="Enter password:", text_color="white")
         self.password_label.pack(pady=5)
-
-        self.password_entry = ctk.CTkEntry(self, show="*")
+        
+        self.password_entry = ctk.CTkEntry(self, show="*", width=250)
         self.password_entry.pack(pady=5)
-
-        self.url_label = ctk.CTkLabel(self, text="Enter remote URL:")
+        
+        self.url_label = ctk.CTkLabel(self, text="Enter remote URL:", text_color="white")
         self.url_label.pack(pady=5)
-
-        self.url_entry = ctk.CTkEntry(self)
+        
+        self.url_entry = ctk.CTkEntry(self, width=250)
         self.url_entry.pack(pady=5)
-
+        
         self.submit_button = ctk.CTkButton(self, text="Submit", command=self.on_submit)
-        self.submit_button.pack(pady=5)
+        self.submit_button.pack(pady=20)
 
         self.username = None
         self.password = None
@@ -45,16 +46,17 @@ class RepoPathDialog(ctk.CTkToplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("Enter Repository Path")
-        self.geometry("300x100")
+        self.geometry("400x150")
+        self.configure(fg_color="#444444")  # Ansprechenderes Schwarz
 
-        self.path_label = ctk.CTkLabel(self, text="Enter repository path:")
+        self.path_label = ctk.CTkLabel(self, text="Enter repository path:", text_color="white")
         self.path_label.pack(pady=5)
-
-        self.path_entry = ctk.CTkEntry(self)
+        
+        self.path_entry = ctk.CTkEntry(self, width=250)
         self.path_entry.pack(pady=5)
-
+        
         self.submit_button = ctk.CTkButton(self, text="Submit", command=self.on_submit)
-        self.submit_button.pack(pady=5)
+        self.submit_button.pack(pady=20)
 
         self.path = None
 
@@ -66,7 +68,7 @@ class GitCredentialManager(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Git Credential Manager")
-        self.geometry("700x600")
+        self.geometry("800x700")
 
         # Colors and Theme
         ctk.set_appearance_mode("dark")
@@ -77,42 +79,54 @@ class GitCredentialManager(ctk.CTk):
         self.repos = self.load_repositories()
         self.selected_credentials = []
 
-        # Frame for padding
-        self.main_frame = ctk.CTkFrame(self)
+        # Main Frame
+        self.main_frame = ctk.CTkFrame(self, corner_radius=15, fg_color="#444444")  # Ansprechenderes Schwarz
         self.main_frame.pack(pady=20, padx=20, expand=True, fill="both")
 
-        self.title_label = ctk.CTkLabel(self.main_frame, text="Git Credential Manager", font=("", 16))
-        self.title_label.pack(pady=10)
+        self.title_label = ctk.CTkLabel(self.main_frame, text="Git Credential Manager", font=("", 24), text_color="white")
+        self.title_label.pack(pady=20)
 
-        self.credential_frame = ctk.CTkFrame(self.main_frame)
-        self.credential_frame.pack(pady=10, expand=True, fill="both")
+        # Credential Frame
+        self.credential_frame_title = ctk.CTkLabel(self.main_frame, text="Credentials", font=("", 20), text_color="white")
+        self.credential_frame_title.pack(pady=(10, 5))
+        
+        self.credential_frame = ctk.CTkFrame(self.main_frame, corner_radius=15, fg_color="#444444")
+        self.credential_frame.pack(pady=(5, 20), expand=True, fill="both")
 
-        self.repo_textbox = ctk.CTkTextbox(self.main_frame)
-        self.repo_textbox.pack(pady=10, expand=True, fill="both")
+        # Repository Textbox
+        self.repo_textbox_title = ctk.CTkLabel(self.main_frame, text="Repositories", font=("", 20), text_color="white")
+        self.repo_textbox_title.pack(pady=(10, 5))
+        
+        self.repo_textbox = ctk.CTkTextbox(self.main_frame, width=80, height=10)
+        self.repo_textbox.pack(pady=(5, 20), expand=True, fill="both")
         self.repo_textbox.configure(state="disabled")
 
-        self.output_textbox = ctk.CTkTextbox(self.main_frame)
-        self.output_textbox.pack(pady=10, expand=True, fill="both")
+        # Output Textbox
+        self.output_textbox_title = ctk.CTkLabel(self.main_frame, text="Output", font=("", 20), text_color="white")
+        self.output_textbox_title.pack(pady=(20, 5))
+        
+        self.output_textbox = ctk.CTkTextbox(self.main_frame, width=80, height=10)
+        self.output_textbox.pack(pady=(5, 20), expand=True, fill="both")
         self.output_textbox.configure(state="disabled")
 
         self.update_credential_frame()
         self.update_repo_textbox()
 
         # Buttons with padding
-        self.button_frame = ctk.CTkFrame(self.main_frame)
-        self.button_frame.pack(pady=10)
+        self.button_frame = ctk.CTkFrame(self.main_frame, fg_color="#444444")
+        self.button_frame.pack(pady=20)
 
-        self.add_button = ctk.CTkButton(self.button_frame, text="Add", command=self.add_credential)
-        self.add_button.pack(side="left", padx=5)
+        self.add_button = ctk.CTkButton(self.button_frame, text="Add", command=self.add_credential, width=100)
+        self.add_button.pack(side="left", padx=10)
 
-        self.edit_button = ctk.CTkButton(self.button_frame, text="Edit", command=self.edit_credential)
-        self.edit_button.pack(side="left", padx=5)
+        self.edit_button = ctk.CTkButton(self.button_frame, text="Edit", command=self.edit_credential, width=100)
+        self.edit_button.pack(side="left", padx=10)
 
-        self.delete_button = ctk.CTkButton(self.button_frame, text="Delete", command=self.delete_credential)
-        self.delete_button.pack(side="left", padx=5)
+        self.delete_button = ctk.CTkButton(self.button_frame, text="Delete", command=self.delete_credential, width=100)
+        self.delete_button.pack(side="left", padx=10)
 
-        self.manage_repos_button = ctk.CTkButton(self.button_frame, text="Manage Repos", command=self.manage_repos)
-        self.manage_repos_button.pack(side="left", padx=5)
+        self.manage_repos_button = ctk.CTkButton(self.button_frame, text="Manage Repos", command=self.manage_repos, width=150)
+        self.manage_repos_button.pack(side="left", padx=10)
 
     def load_credentials(self):
         if os.path.exists("credentials.json"):
@@ -140,15 +154,23 @@ class GitCredentialManager(ctk.CTk):
         self.selected_credentials.clear()
         for index, credential in enumerate(self.credentials):
             var = ctk.StringVar(value=credential.get("url", ""))
-            checkbox = ctk.CTkCheckBox(self.credential_frame, text=f"{credential['username']} ({credential['url']})", variable=var, onvalue=credential['url'], offvalue="")
-            checkbox.grid(row=index, column=0, sticky="w")
+            checkbox = ctk.CTkCheckBox(
+                self.credential_frame,
+                text=f"{credential['username']} ({credential['url']})",
+                variable=var, 
+                onvalue=credential['url'],
+                offvalue="", 
+                fg_color="#444444",  # Corrected here
+                text_color="white"
+            )
+            checkbox.grid(row=index, column=0, sticky="w", padx=20, pady=5)
             self.selected_credentials.append(checkbox)
 
     def update_repo_textbox(self):
         self.repo_textbox.configure(state="normal")
         self.repo_textbox.delete(1.0, ctk.END)
-        for index, repo in enumerate(self.repos):
-            self.repo_textbox.insert(ctk.END, f"{index + 1}. {repo}\n")
+        for repo in self.repos:
+            self.repo_textbox.insert(ctk.END, f"{repo}\n")  # Removed numbering
         self.repo_textbox.configure(state="disabled")
 
     def add_credential(self):
@@ -202,7 +224,7 @@ class GitCredentialManager(ctk.CTk):
         selected_indices = [i for i, checkbox in enumerate(self.selected_credentials) if checkbox.get()]
 
         if not selected_indices:
-            messagebox.show_warning("Warning", "No credential selected to delete.")
+            messagebox.showwarning("Warning", "No credential selected to delete.")
             return
 
         for index in selected_indices:
