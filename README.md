@@ -122,10 +122,6 @@ python git_user_manager.py
 ### `GitCredentialManager`
 - The main application window for managing credentials and repositories.
 
-## 📸 Screenshot
-
-![Git Credential Manager](./screenshots/Screenshot_20240528_023911.png)
-
 ## 🧑‍💻 Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request for any improvements or bug fixes.
