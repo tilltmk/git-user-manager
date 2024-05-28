@@ -130,6 +130,11 @@ Contributions are welcome! Please fork the repository and submit a pull request 
 
 This project is licensed under the GNU GPL v3 License.
 
+## Special Thanks
+
+Special Thanks to Wil Nichols via Iconspedia:
+https://www.iconspedia.com/icon/user-black-folder-icon-36035.html
+
 ---
 
 Happy managing your Git credentials! ✨
