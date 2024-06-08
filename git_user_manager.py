@@ -370,22 +370,23 @@ class GitManagerApp(ctk.CTk):
             self.resolve_git_errors(result.stderr, repo_path)
 
     def resolve_git_errors(self, error_message, repo_path):
-        if "fatal: cannot lock ref 'HEAD'" in error_message:
+        if "fatal: cannot lock ref 'HEAD'" in error_message or "fatal: kann 'HEAD' nicht sperren" in error_message:
             self.run_git_command("git reset --hard", repo_path)
-        elif "error: failed to push some refs" in error_message:
+        elif "error: failed to push some refs" in error_message or "error: Fehler beim Versenden einiger Referenzen" in error_message:
             self.run_git_command("git pull --rebase", repo_path)
-        elif "fatal: You have divergent branches and need to specify how to reconcile them" in error_message:
+        elif "fatal: You have divergent branches and need to specify how to reconcile them" in error_message or "fatal: Es muss angegeben werden, wie mit abweichenden Branches umgegangen werden soll" in error_message:
             self.run_git_command("git config pull.rebase false", repo_path)
             self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]}", repo_path)
-        elif "fatal: refusing to merge unrelated histories" in error_message:
+        elif "fatal: refusing to merge unrelated histories" in error_message or "fatal: verweigere den Merge von nicht zusammenhängenden Historien" in error_message:
             self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]} --allow-unrelated-histories", repo_path)
-        elif "error: src refspec main does not match any" in error_message:
+        elif "error: src refspec main does not match any" in error_message or "error: Src-Refspec main entspricht keiner Referenz" in error_message:
             self.run_git_command(f"git push origin HEAD:{self.get_selected_repo_dir()[2]}", repo_path)
         elif "Merge conflict" in error_message or "CONFLICT" in error_message:
             self.resolve_merge_conflicts(repo_path)
-        elif "There is no tracking information for the current branch" in error_message:
+        elif "There is no tracking information for the current branch" in error_message or "Es gibt keine Tracking-Informationen für den aktuellen Branch" in error_message:
             self.run_git_command(f"git branch --set-upstream-to=origin/{self.get_selected_repo_dir()[2]} master", repo_path)
             self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]}", repo_path)
+
 
     def resolve_merge_conflicts(self, repo_path):
         if self.conflict_resolution_var.get() == 1:
