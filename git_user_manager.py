@@ -77,6 +77,10 @@ class GitManagerApp(ctk.CTk):
         self.conflict_resolution_checkbox = ctk.CTkCheckBox(self.main_frame, text="Auto-resolve conflicts by keeping newer and larger files", variable=self.conflict_resolution_var)
         self.conflict_resolution_checkbox.pack(pady=5)
 
+        self.rebase_var = tk.IntVar(value=0)
+        self.rebase_checkbox = ctk.CTkCheckBox(self.main_frame, text="Rebase instead of merge for pull", variable=self.rebase_var)
+        self.rebase_checkbox.pack(pady=5)
+
         self.load_repos()
         self.load_settings()
 
@@ -195,7 +199,10 @@ class GitManagerApp(ctk.CTk):
 
             # Update the remote repository URL
             remote_command = ["git", "remote", "set-url", "origin", remote_url]
-            subprocess.run(remote_command, cwd=local_dir)
+            result = subprocess.run(remote_command, cwd=local_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                messagebox.showerror("Error", f"Failed to update remote URL:\n{result.stderr}")
+                return
 
             self.save_repos_to_file()
             window.destroy()
@@ -375,7 +382,10 @@ class GitManagerApp(ctk.CTk):
         elif "error: failed to push some refs" in error_message or "error: Fehler beim Versenden einiger Referenzen" in error_message:
             self.run_git_command("git pull --rebase", repo_path)
         elif "fatal: You have divergent branches and need to specify how to reconcile them" in error_message or "fatal: Es muss angegeben werden, wie mit abweichenden Branches umgegangen werden soll" in error_message:
-            self.run_git_command("git config pull.rebase false", repo_path)
+            if self.rebase_var.get() == 1:
+                self.run_git_command("git config pull.rebase true", repo_path)
+            else:
+                self.run_git_command("git config pull.rebase false", repo_path)
             self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]}", repo_path)
         elif "fatal: refusing to merge unrelated histories" in error_message or "fatal: verweigere den Merge von nicht zusammenhängenden Historien" in error_message:
             self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]} --allow-unrelated-histories", repo_path)
@@ -386,7 +396,6 @@ class GitManagerApp(ctk.CTk):
         elif "There is no tracking information for the current branch" in error_message or "Es gibt keine Tracking-Informationen für den aktuellen Branch" in error_message:
             self.run_git_command(f"git branch --set-upstream-to=origin/{self.get_selected_repo_dir()[2]} master", repo_path)
             self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]}", repo_path)
-
 
     def resolve_merge_conflicts(self, repo_path):
         if self.conflict_resolution_var.get() == 1:
