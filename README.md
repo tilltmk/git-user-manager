@@ -1,6 +1,6 @@
 # Git Credential Manager 👨‍💻
 
-![Git Credential Manager](https://img.shields.io/badge/Git%20Credential%20Manager-v2.0-red)
+![Git Credential Manager](https://img.shields.io/badge/Git%20Credential%20Manager-v2.1-red)
 
 ## 📜 Description
 
