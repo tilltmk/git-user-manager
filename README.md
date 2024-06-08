@@ -2,8 +2,6 @@
 
 ![Git Credential Manager](https://img.shields.io/badge/Git%20Credential%20Manager-v2.0-red)
 
-![Git Credential Manager](https://github.com/tilltmk/git-user-manager/blob/main/screenshots/screenshot-v2.png)
-
 ## 📜 Description
 
 The **Git Credential Manager** is a Python-based graphical user interface (GUI) application that leverages `customtkinter` to help users manage Git credentials and repositories with ease. With features to add, edit, delete credentials, and configure repositories, it simplifies the process of juggling multiple Git accounts.
@@ -30,6 +28,8 @@ git-user-manager/
 ```
 
 ## 🚀 Getting Started
+
+![Git Credential Manager](https://github.com/tilltmk/git-user-manager/blob/main/screenshots/screenshot-v2.png)
 
 ### Prerequisites
 
