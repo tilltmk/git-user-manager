@@ -70,13 +70,17 @@ class GitManagerApp(ctk.CTk):
         self.terminal_output.configure(fg_color="#1e1e1e", text_color="white")
         self.terminal_output.pack(fill="both", expand=True)
 
+        self.conflict_resolution_var = tk.IntVar(value=1)
+        self.conflict_resolution_checkbox = ctk.CTkCheckBox(self.main_frame, text="Auto-resolve conflicts by keeping newer and larger files", variable=self.conflict_resolution_var)
+        self.conflict_resolution_checkbox.pack(pady=5)
+
         self.load_repos()
         self.load_settings()
 
     def open_add_repo_window(self):
         add_repo_window = ctk.CTkToplevel(self)
         add_repo_window.title("Add Repository")
-        add_repo_window.geometry("400x500")
+        add_repo_window.geometry("400x600")
 
         dir_label = ctk.CTkLabel(add_repo_window, text="Local Directory")
         dir_label.pack(pady=5)
@@ -89,6 +93,13 @@ class GitManagerApp(ctk.CTk):
 
         repo_entry = ctk.CTkEntry(add_repo_window)
         repo_entry.pack(pady=5)
+
+        branch_label = ctk.CTkLabel(add_repo_window, text="Branch")
+        branch_label.pack(pady=5)
+
+        branch_entry = ctk.CTkEntry(add_repo_window)
+        branch_entry.pack(pady=5)
+        branch_entry.insert(0, "main")  # Default branch
 
         user_label = ctk.CTkLabel(add_repo_window, text="Username")
         user_label.pack(pady=5)
@@ -108,11 +119,11 @@ class GitManagerApp(ctk.CTk):
         pass_entry = ctk.CTkEntry(add_repo_window, show="*")
         pass_entry.pack(pady=5)
 
-        add_button = ctk.CTkButton(add_repo_window, text="Add", command=lambda: self.add_repo(dir_entry.get(), repo_entry.get(), user_entry.get(), email_entry.get(), pass_entry.get(), add_repo_window))
+        add_button = ctk.CTkButton(add_repo_window, text="Add", command=lambda: self.add_repo(dir_entry.get(), repo_entry.get(), branch_entry.get(), user_entry.get(), email_entry.get(), pass_entry.get(), add_repo_window))
         add_button.pack(pady=10)
 
-    def add_repo(self, local_dir, remote_url, username, email, password, window):
-        if local_dir and remote_url and username and email and password:
+    def add_repo(self, local_dir, remote_url, branch, username, email, password, window):
+        if local_dir and remote_url and branch and username and email and password:
             keyring.set_password(remote_url, username, password)
 
             # Initialize the local repository if it does not exist
@@ -142,8 +153,8 @@ class GitManagerApp(ctk.CTk):
                 messagebox.showerror("Error", f"Failed to add or update remote URL:\n{result.stderr}")
                 return
 
-            self.repo_listbox.insert("end", f"{local_dir} -> {remote_url}")
-            self.save_repo(local_dir, remote_url, username, email)
+            self.repo_listbox.insert("end", f"{local_dir} -> {remote_url} [{branch}]")
+            self.save_repo(local_dir, remote_url, branch, username, email)
             window.destroy()
         else:
             messagebox.showerror("Error", "All fields must be filled out")
@@ -170,16 +181,20 @@ class GitManagerApp(ctk.CTk):
         creds_input = f"url={remote_url.replace('https://', 'https://'+username+':'+password+'@')}\n"
         subprocess.run(creds_command, cwd=local_dir, input=creds_input.encode())
 
-    def save_repo(self, local_dir, remote_url, username, email):
+    def save_repo(self, local_dir, remote_url, branch, username, email):
         with open("repos.txt", "a") as file:
-            file.write(f"{local_dir},{remote_url},{username},{email}\n")
+            file.write(f"{local_dir},{remote_url},{branch},{username},{email}\n")
 
     def load_repos(self):
         if os.path.exists("repos.txt"):
             with open("repos.txt", "r") as file:
                 for line in file:
-                    local_dir, remote_url, username, email = line.strip().split(",")
-                    self.repo_listbox.insert("end", f"{local_dir} -> {remote_url}")
+                    parts = line.strip().split(",")
+                    if len(parts) == 5:
+                        local_dir, remote_url, branch, username, email = parts
+                        self.repo_listbox.insert("end", f"{local_dir} -> {remote_url} [{branch}]")
+                    else:
+                        messagebox.showerror("Error", f"Invalid line in repos.txt: {line}")
 
     def delete_selected_repos(self):
         selected_indices = self.repo_listbox.curselection()
@@ -192,9 +207,10 @@ class GitManagerApp(ctk.CTk):
             for i in range(self.repo_listbox.size()):
                 line = self.repo_listbox.get(i)
                 local_dir, rest = line.split(" -> ")
-                remote_url = rest.strip()
+                remote_url, branch = rest.strip().split(" [")
+                branch = branch[:-1]
                 username, email = "", ""
-                file.write(f"{local_dir},{remote_url},{username},{email}\n")
+                file.write(f"{local_dir},{remote_url},{branch},{username},{email}\n")
 
     def open_settings_window(self):
         settings_window = ctk.CTkToplevel(self)
@@ -279,25 +295,60 @@ class GitManagerApp(ctk.CTk):
             messagebox.showerror("Error", "Please select a repository")
             return None
         selected_line = self.repo_listbox.get(selected_indices[0])
-        local_dir, remote_url = selected_line.split(" -> ")
-        return local_dir.strip(), remote_url.strip()
+        local_dir, rest = selected_line.split(" -> ")
+        remote_url, branch = rest.strip().split(" [")
+        branch = branch[:-1]
+        return local_dir.strip(), remote_url.strip(), branch.strip()
 
     def git_init_and_pull(self):
-        local_dir, remote_url = self.get_selected_repo_dir()
+        local_dir, remote_url, branch = self.get_selected_repo_dir()
         if local_dir:
             # Initialize if not already initialized
             if not os.path.exists(os.path.join(local_dir, '.git')):
                 self.run_git_command("git init", local_dir)
                 self.run_git_command(f"git remote add origin {remote_url}", local_dir)
-            self.run_git_command("git pull origin main", local_dir)
+            self.run_git_command(f"git pull origin {branch}", local_dir)
 
     def git_sync(self):
-        local_dir, remote_url = self.get_selected_repo_dir()
+        local_dir, remote_url, branch = self.get_selected_repo_dir()
         if local_dir:
             self.run_git_command("git add .", local_dir)
             self.run_git_command("git commit -m 'Sync changes'", local_dir)
-            self.run_git_command("git pull origin main", local_dir)
-            self.run_git_command("git push origin main", local_dir)
+            self.handle_git_errors(f"git pull origin {branch}", local_dir)
+            self.handle_git_errors(f"git push origin {branch}", local_dir)
+
+    def handle_git_errors(self, command, repo_path):
+        result = subprocess.run(command, cwd=repo_path, capture_output=True, text=True, shell=True)
+        if result.returncode == 0:
+            self.terminal_output.insert("end", f"Output:\n{result.stdout}\n")
+        else:
+            self.terminal_output.insert("end", f"Error:\n{result.stderr}\n")
+            self.terminal_output.see("end")
+            self.resolve_git_errors(result.stderr, repo_path)
+
+    def resolve_git_errors(self, error_message, repo_path):
+        if "fatal: cannot lock ref 'HEAD'" in error_message:
+            self.run_git_command("git reset --hard", repo_path)
+        elif "error: Fehler beim Versenden einiger Referenzen" in error_message:
+            self.run_git_command("git pull --rebase", repo_path)
+        elif "fatal: Es muss angegeben werden, wie mit abweichenden Branches umgegangen werden sollen" in error_message:
+            self.run_git_command("git config pull.rebase false", repo_path)
+            self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]}", repo_path)
+        elif "fatal: verweigere den Merge von nicht zusammenhängenden Historien" in error_message:
+            self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]} --allow-unrelated-histories", repo_path)
+        elif "error: Src-Refspec main entspricht keiner Referenz" in error_message:
+            self.run_git_command(f"git push origin HEAD:{self.get_selected_repo_dir()[2]}", repo_path)
+        elif "Merge conflict" in error_message or "CONFLICT" in error_message:
+            self.resolve_merge_conflicts(repo_path)
+        elif "Es gibt keine Tracking-Informationen für den aktuellen Branch" in error_message:
+            self.run_git_command(f"git branch --set-upstream-to=origin/{self.get_selected_repo_dir()[2]} master", repo_path)
+            self.run_git_command(f"git pull origin {self.get_selected_repo_dir()[2]}", repo_path)
+
+    def resolve_merge_conflicts(self, repo_path):
+        if self.conflict_resolution_var.get() == 1:
+            self.run_git_command("git merge --strategy-option=theirs", repo_path)
+        else:
+            self.run_git_command("git merge --strategy-option=ours", repo_path)
 
     def run_git_command(self, command, repo_path):
         result = subprocess.run(command, cwd=repo_path, capture_output=True, text=True, shell=True)
