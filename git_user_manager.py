@@ -1,280 +1,308 @@
 import customtkinter as ctk
-import os
-import json
-import subprocess
+import tkinter as tk
 from tkinter import messagebox
+import os
+import subprocess
+import keyring
+import sys
+import threading
 
-class AddCredentialDialog(ctk.CTkToplevel):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Add Credential")
-        self.geometry("400x400")
-        self.configure(fg_color="#444444")  # Ansprechenderes Schwarz
-        
-        self.username_label = ctk.CTkLabel(self, text="Enter username:", text_color="white")
-        self.username_label.pack(pady=5)
-        
-        self.username_entry = ctk.CTkEntry(self, width=250)
-        self.username_entry.pack(pady=5)
-        
-        self.password_label = ctk.CTkLabel(self, text="Enter password:", text_color="white")
-        self.password_label.pack(pady=5)
-        
-        self.password_entry = ctk.CTkEntry(self, show="*", width=250)
-        self.password_entry.pack(pady=5)
-        
-        self.url_label = ctk.CTkLabel(self, text="Enter remote URL:", text_color="white")
-        self.url_label.pack(pady=5)
-        
-        self.url_entry = ctk.CTkEntry(self, width=250)
-        self.url_entry.pack(pady=5)
-        
-        self.submit_button = ctk.CTkButton(self, text="Submit", command=self.on_submit)
-        self.submit_button.pack(pady=20)
+SSH_ENABLED = False
 
-        self.username = None
-        self.password = None
-        self.url = None
-
-    def on_submit(self):
-        self.username = self.username_entry.get()
-        self.password = self.password_entry.get()
-        self.url = self.url_entry.get()
-        self.destroy()
-
-class RepoPathDialog(ctk.CTkToplevel):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.title("Enter Repository Path")
-        self.geometry("400x150")
-        self.configure(fg_color="#444444")  # Ansprechenderes Schwarz
-
-        self.path_label = ctk.CTkLabel(self, text="Enter repository path:", text_color="white")
-        self.path_label.pack(pady=5)
-        
-        self.path_entry = ctk.CTkEntry(self, width=250)
-        self.path_entry.pack(pady=5)
-        
-        self.submit_button = ctk.CTkButton(self, text="Submit", command=self.on_submit)
-        self.submit_button.pack(pady=20)
-
-        self.path = None
-
-    def on_submit(self):
-        self.path = self.path_entry.get()
-        self.destroy()
-
-class GitCredentialManager(ctk.CTk):
+class GitManagerApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Git Credential Manager")
-        self.geometry("800x700")
 
-        # Colors and Theme
         ctk.set_appearance_mode("dark")
-        ctk.set_default_color_theme("blue")
+        ctk.set_default_color_theme("green")
 
-        # Load credentials and repos
-        self.credentials = self.load_credentials()
-        self.repos = self.load_repositories()
-        self.selected_credentials = []
+        self.title("Git Manager")
+        self.geometry("800x600")
 
-        # Main Frame
-        self.main_frame = ctk.CTkFrame(self, corner_radius=15, fg_color="#444444")  # Ansprechenderes Schwarz
-        self.main_frame.pack(pady=20, padx=20, expand=True, fill="both")
+        self.main_frame = ctk.CTkFrame(self)
+        self.main_frame.pack(fill="both", expand=True, padx=20, pady=20)
 
-        self.title_label = ctk.CTkLabel(self.main_frame, text="Git Credential Manager", font=("", 24), text_color="white")
-        self.title_label.pack(pady=20)
+        self.label = ctk.CTkLabel(self.main_frame, text="Git Manager", font=("Arial", 24))
+        self.label.pack(pady=20)
 
-        # Credential Frame
-        self.credential_frame_title = ctk.CTkLabel(self.main_frame, text="Credentials", font=("", 20), text_color="white")
-        self.credential_frame_title.pack(pady=(10, 5))
+        # Menu Section
+        self.menu_frame = ctk.CTkFrame(self.main_frame)
+        self.menu_frame.pack(fill="x", pady=10)
+
+        self.add_repo_button = ctk.CTkButton(self.menu_frame, text="Add Repository", command=self.open_add_repo_window)
+        self.add_repo_button.pack(side="left", padx=2)
+
+        self.settings_button = ctk.CTkButton(self.menu_frame, text="Settings", command=self.open_settings_window)
+        self.settings_button.pack(side="left", padx=2)
         
-        self.credential_frame = ctk.CTkFrame(self.main_frame, corner_radius=15, fg_color="#444444")
-        self.credential_frame.pack(pady=(5, 20), expand=True, fill="both")
+        self.init_button = ctk.CTkButton(self.menu_frame, text="Initialize", command=self.git_init_and_pull)
+        self.init_button.pack(side="left", padx=2)
 
-        # Repository Textbox
-        self.repo_textbox_title = ctk.CTkLabel(self.main_frame, text="Repositories", font=("", 20), text_color="white")
-        self.repo_textbox_title.pack(pady=(10, 5))
-        
-        self.repo_textbox = ctk.CTkTextbox(self.main_frame, width=80, height=10)
-        self.repo_textbox.pack(pady=(5, 20), expand=True, fill="both")
-        self.repo_textbox.configure(state="disabled")
+        self.sync_button = ctk.CTkButton(self.menu_frame, text="Sync", command=self.git_sync)
+        self.sync_button.pack(side="left", padx=2)
 
-        # Output Textbox
-        self.output_textbox_title = ctk.CTkLabel(self.main_frame, text="Output", font=("", 20), text_color="white")
-        self.output_textbox_title.pack(pady=(20, 5))
-        
-        self.output_textbox = ctk.CTkTextbox(self.main_frame, width=80, height=10)
-        self.output_textbox.pack(pady=(5, 20), expand=True, fill="both")
-        self.output_textbox.configure(state="disabled")
+        self.delete_button = ctk.CTkButton(self.menu_frame, text="Delete Selected", command=self.delete_selected_repos)
+        self.delete_button.pack(side="left", padx=2)
 
-        self.update_credential_frame()
-        self.update_repo_textbox()
+        # Repository List Section
+        self.listbox_frame = ctk.CTkFrame(self.main_frame)
+        self.listbox_frame.pack(fill="both", expand=True)
 
-        # Buttons with padding
-        self.button_frame = ctk.CTkFrame(self.main_frame, fg_color="#444444")
-        self.button_frame.pack(pady=20)
+        self.repo_listbox = tk.Listbox(self.listbox_frame, selectmode=tk.SINGLE, font=("Arial", 12), bg="#2b2b2b", fg="white", selectbackground="#4a4a4a", selectforeground="white")
+        self.repo_listbox.pack(side="left", fill="both", expand=True)
 
-        self.add_button = ctk.CTkButton(self.button_frame, text="Add", command=self.add_credential, width=100)
-        self.add_button.pack(side="left", padx=10)
+        self.scrollbar = ctk.CTkScrollbar(self.listbox_frame, orientation="vertical", command=self.repo_listbox.yview)
+        self.scrollbar.pack(side="right", fill="y")
+        self.repo_listbox.configure(yscrollcommand=self.scrollbar.set)
 
-        self.edit_button = ctk.CTkButton(self.button_frame, text="Edit", command=self.edit_credential, width=100)
-        self.edit_button.pack(side="left", padx=10)
+        # Terminal Section
+        self.terminal_frame = ctk.CTkFrame(self.main_frame)
+        self.terminal_frame.pack(fill="both", expand=True)
 
-        self.delete_button = ctk.CTkButton(self.button_frame, text="Delete", command=self.delete_credential, width=100)
-        self.delete_button.pack(side="left", padx=10)
+        self.terminal_label = ctk.CTkLabel(self.terminal_frame, text="Terminal Output", font=("Arial", 12))
+        self.terminal_label.pack(pady=5)
 
-        self.manage_repos_button = ctk.CTkButton(self.button_frame, text="Manage Repos", command=self.manage_repos, width=150)
-        self.manage_repos_button.pack(side="left", padx=10)
+        self.terminal_output = ctk.CTkTextbox(self.terminal_frame, font=("Courier", 12))
+        self.terminal_output.configure(fg_color="#1e1e1e", text_color="white")
+        self.terminal_output.pack(fill="both", expand=True)
 
-    def load_credentials(self):
-        if os.path.exists("credentials.json"):
-            with open("credentials.json", "r") as file:
-                return json.load(file)
-        else:
-            return []
+        self.load_repos()
+        self.load_settings()
 
-    def save_credentials(self):
-        with open("credentials.json", "w") as file:
-            json.dump(self.credentials, file)
+    def open_add_repo_window(self):
+        add_repo_window = ctk.CTkToplevel(self)
+        add_repo_window.title("Add Repository")
+        add_repo_window.geometry("400x500")
 
-    def load_repositories(self):
-        repos = []
-        home_dir = os.path.expanduser("~")
-        for root, dirs, files in os.walk(home_dir):
-            if ".git" in dirs:
-                repos.append(root)
-        return repos
+        dir_label = ctk.CTkLabel(add_repo_window, text="Local Directory")
+        dir_label.pack(pady=5)
 
-    def update_credential_frame(self):
-        for widget in self.credential_frame.winfo_children():
-            widget.destroy()
+        dir_entry = ctk.CTkEntry(add_repo_window)
+        dir_entry.pack(pady=5)
 
-        self.selected_credentials.clear()
-        for index, credential in enumerate(self.credentials):
-            var = ctk.StringVar(value=credential.get("url", ""))
-            checkbox = ctk.CTkCheckBox(
-                self.credential_frame,
-                text=f"{credential['username']} ({credential['url']})",
-                variable=var, 
-                onvalue=credential['url'],
-                offvalue="", 
-                fg_color="#444444",  # Corrected here
-                text_color="white"
-            )
-            checkbox.grid(row=index, column=0, sticky="w", padx=20, pady=5)
-            self.selected_credentials.append(checkbox)
+        repo_label = ctk.CTkLabel(add_repo_window, text="Remote Repository URL")
+        repo_label.pack(pady=5)
 
-    def update_repo_textbox(self):
-        self.repo_textbox.configure(state="normal")
-        self.repo_textbox.delete(1.0, ctk.END)
-        for repo in self.repos:
-            self.repo_textbox.insert(ctk.END, f"{repo}\n")  # Removed numbering
-        self.repo_textbox.configure(state="disabled")
+        repo_entry = ctk.CTkEntry(add_repo_window)
+        repo_entry.pack(pady=5)
 
-    def add_credential(self):
-        dialog = AddCredentialDialog(self)
-        self.wait_window(dialog)
+        user_label = ctk.CTkLabel(add_repo_window, text="Username")
+        user_label.pack(pady=5)
 
-        username = dialog.username
-        password = dialog.password
-        url = dialog.url
+        user_entry = ctk.CTkEntry(add_repo_window)
+        user_entry.pack(pady=5)
 
-        if username and password and url:
-            self.credentials.append({"username": username, "password": password, "url": url})
-            self.save_credentials()
-            self.update_credential_frame()
-        else:
-            messagebox.showerror("Error", "Username, password, and remote URL cannot be empty.")
+        email_label = ctk.CTkLabel(add_repo_window, text="Email")
+        email_label.pack(pady=5)
 
-    def edit_credential(self):
-        selected_indices = [i for i, checkbox in enumerate(self.selected_credentials) if checkbox.get()]
+        email_entry = ctk.CTkEntry(add_repo_window)
+        email_entry.pack(pady=5)
 
-        if not selected_indices:
-            messagebox.showwarning("Warning", "No credential selected to edit.")
-            return
+        pass_label = ctk.CTkLabel(add_repo_window, text="Password")
+        pass_label.pack(pady=5)
 
-        index = selected_indices[0]
-        self.selected_credential = self.credentials[index]
+        pass_entry = ctk.CTkEntry(add_repo_window, show="*")
+        pass_entry.pack(pady=5)
 
-        if self.selected_credential:
-            dialog = AddCredentialDialog(self)
-            dialog.username_entry.insert(0, self.selected_credential["username"])
-            dialog.password_entry.insert(0, self.selected_credential["password"])
-            dialog.url_entry.insert(0, self.selected_credential["url"])
-            self.wait_window(dialog)
+        add_button = ctk.CTkButton(add_repo_window, text="Add", command=lambda: self.add_repo(dir_entry.get(), repo_entry.get(), user_entry.get(), email_entry.get(), pass_entry.get(), add_repo_window))
+        add_button.pack(pady=10)
 
-            username = dialog.username
-            password = dialog.password
-            url = dialog.url
+    def add_repo(self, local_dir, remote_url, username, email, password, window):
+        if local_dir and remote_url and username and email and password:
+            keyring.set_password(remote_url, username, password)
 
-            if username and password:
-                self.selected_credential["username"] = username
-                self.selected_credential["password"] = password
-                self.selected_credential["url"] = url
-                self.save_credentials()
-                self.update_credential_frame()
+            # Initialize the local repository if it does not exist
+            if not os.path.exists(os.path.join(local_dir, '.git')):
+                init_command = ["git", "init"]
+                subprocess.run(init_command, cwd=local_dir)
+            
+            # Set user information
+            self.set_git_user_info(local_dir, username, email)
+            
+            # Configure the repository with the access credentials
+            self.configure_git_credentials(local_dir, remote_url, username, password)
+            
+            # Check if the remote repository already exists
+            remote_check_command = ["git", "remote", "get-url", "origin"]
+            result = subprocess.run(remote_check_command, cwd=local_dir, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                # If the remote already exists, update the URL
+                remote_command = ["git", "remote", "set-url", "origin", remote_url]
             else:
-                messagebox.showerror("Error", "Username, password, and remote URL cannot be empty.")
+                # If the remote does not exist, add the remote repository URL
+                remote_command = ["git", "remote", "add", "origin", remote_url]
+            
+            result = subprocess.run(remote_command, cwd=local_dir, capture_output=True, text=True)
+            if result.returncode != 0:
+                messagebox.showerror("Error", f"Failed to add or update remote URL:\n{result.stderr}")
+                return
+
+            self.repo_listbox.insert("end", f"{local_dir} -> {remote_url}")
+            self.save_repo(local_dir, remote_url, username, email)
+            window.destroy()
         else:
-            messagebox.showerror("Error", "No credential selected.")
+            messagebox.showerror("Error", "All fields must be filled out")
 
-    def delete_credential(self):
-        selected_indices = [i for i, checkbox in enumerate(self.selected_credentials) if checkbox.get()]
+    def set_git_user_info(self, local_dir, username, email):
+        user_name_command = ["git", "config", "user.name", username]
+        user_email_command = ["git", "config", "user.email", email]
+        
+        subprocess.run(user_name_command, cwd=local_dir)
+        subprocess.run(user_email_command, cwd=local_dir)
 
+    def configure_git_credentials(self, local_dir, remote_url, username, password):
+        # Use credential helper to store credentials
+        with open(os.path.join(local_dir, ".git", "config"), "a") as git_config:
+            git_config.write(f"""
+    [credential]
+        helper = store
+    [url "{remote_url}"]
+        insteadOf = {remote_url}
+    """)
+        
+        # Store the credentials in the git credential store
+        creds_command = ["git", "credential", "approve"]
+        creds_input = f"url={remote_url.replace('https://', 'https://'+username+':'+password+'@')}\n"
+        subprocess.run(creds_command, cwd=local_dir, input=creds_input.encode())
+
+    def save_repo(self, local_dir, remote_url, username, email):
+        with open("repos.txt", "a") as file:
+            file.write(f"{local_dir},{remote_url},{username},{email}\n")
+
+    def load_repos(self):
+        if os.path.exists("repos.txt"):
+            with open("repos.txt", "r") as file:
+                for line in file:
+                    local_dir, remote_url, username, email = line.strip().split(",")
+                    self.repo_listbox.insert("end", f"{local_dir} -> {remote_url}")
+
+    def delete_selected_repos(self):
+        selected_indices = self.repo_listbox.curselection()
+        for index in reversed(selected_indices):
+            self.repo_listbox.delete(index)
+        self.save_repos_to_file()
+
+    def save_repos_to_file(self):
+        with open("repos.txt", "w") as file:
+            for i in range(self.repo_listbox.size()):
+                line = self.repo_listbox.get(i)
+                local_dir, rest = line.split(" -> ")
+                remote_url = rest.strip()
+                username, email = "", ""
+                file.write(f"{local_dir},{remote_url},{username},{email}\n")
+
+    def open_settings_window(self):
+        settings_window = ctk.CTkToplevel(self)
+        settings_window.title("Settings")
+        settings_window.geometry("400x400")
+
+        settings_label = ctk.CTkLabel(settings_window, text="Settings", font=("Arial", 18))
+        settings_label.pack(pady=10)
+
+        # Add proxy settings
+        proxy_label = ctk.CTkLabel(settings_window, text="Proxy URL")
+        proxy_label.pack(pady=5)
+
+        proxy_entry = ctk.CTkEntry(settings_window)
+        proxy_entry.pack(pady=5)
+
+        # Add theme settings
+        theme_label = ctk.CTkLabel(settings_window, text="Theme")
+        theme_label.pack(pady=5)
+
+        theme_menu = ctk.CTkOptionMenu(settings_window, values=["dark", "light"], command=self.set_theme)
+        theme_menu.pack(pady=5)
+
+        # Add SSH Key Support setting
+        self.ssh_var = tk.IntVar()
+        ssh_checkbox = ctk.CTkCheckBox(settings_window, text="Enable SSH Key Support", variable=self.ssh_var, command=self.toggle_ssh_support)
+        ssh_checkbox.pack(pady=5)
+
+        save_button = ctk.CTkButton(settings_window, text="Save", command=lambda: self.save_settings(proxy_entry.get(), settings_window))
+        save_button.pack(pady=10)
+
+    def set_theme(self, choice):
+        if choice == "light":
+            ctk.set_appearance_mode(choice)
+            ctk.set_default_color_theme("blue")  # Set a light color theme
+        else:
+            ctk.set_appearance_mode("dark")
+            ctk.set_default_color_theme("green")
+        
+    def toggle_ssh_support(self):
+        global SSH_ENABLED
+        if self.ssh_var.get() == 1:
+            SSH_ENABLED = True
+            self.install_ssh_dependencies()
+        else:
+            SSH_ENABLED = False
+
+    def install_ssh_dependencies(self):
+        def install():
+            result = subprocess.run([sys.executable, '-m', 'pip', 'install', 'paramiko'], capture_output=True, text=True)
+            if result.returncode == 0:
+                messagebox.showinfo("SSH Key Support", "Dependencies installed. Please restart the application.")
+            else:
+                messagebox.showerror("SSH Key Support", f"Failed to install dependencies. Error: {result.stderr}")
+        
+        threading.Thread(target=install).start()
+
+    def save_settings(self, proxy_url, window):
+        with open("settings.txt", "w") as file:
+            file.write(f"proxy={proxy_url}\n")
+            file.write(f"ssh={self.ssh_var.get()}\n")
+        window.destroy()
+
+    def load_settings(self):
+        if os.path.exists("settings.txt"):
+            with open("settings.txt", "r") as file:
+                for line in file:
+                    if line.startswith("proxy="):
+                        proxy_url = line.strip().split("=")[1]
+                        os.environ["HTTP_PROXY"] = proxy_url
+                        os.environ["HTTPS_PROXY"] = proxy_url
+                    if line.startswith("ssh="):
+                        ssh_value = line.strip().split("=")[1]
+                        if ssh_value == '1':
+                            global SSH_ENABLED
+                            SSH_ENABLED = True
+                            self.ssh_var.set(1)
+
+    def get_selected_repo_dir(self):
+        selected_indices = self.repo_listbox.curselection()
         if not selected_indices:
-            messagebox.showwarning("Warning", "No credential selected to delete.")
-            return
+            messagebox.showerror("Error", "Please select a repository")
+            return None
+        selected_line = self.repo_listbox.get(selected_indices[0])
+        local_dir, remote_url = selected_line.split(" -> ")
+        return local_dir.strip(), remote_url.strip()
 
-        for index in selected_indices:
-            del self.credentials[index]
+    def git_init_and_pull(self):
+        local_dir, remote_url = self.get_selected_repo_dir()
+        if local_dir:
+            # Initialize if not already initialized
+            if not os.path.exists(os.path.join(local_dir, '.git')):
+                self.run_git_command("git init", local_dir)
+                self.run_git_command(f"git remote add origin {remote_url}", local_dir)
+            self.run_git_command("git pull origin main", local_dir)
 
-        self.save_credentials()
-        self.update_credential_frame()
+    def git_sync(self):
+        local_dir, remote_url = self.get_selected_repo_dir()
+        if local_dir:
+            self.run_git_command("git add .", local_dir)
+            self.run_git_command("git commit -m 'Sync changes'", local_dir)
+            self.run_git_command("git pull origin main", local_dir)
+            self.run_git_command("git push origin main", local_dir)
 
-    def manage_repos(self):
-        selected_indices = [i for i, checkbox in enumerate(self.selected_credentials) if checkbox.get()]
-
-        if not selected_indices:
-            messagebox.showwarning("Warning", "No credential selected to manage repositories.")
-            return
-
-        dialog = RepoPathDialog(self)
-        self.wait_window(dialog)
-
-        repo_path = dialog.path
-
-        if not repo_path or not os.path.isdir(repo_path):
-            messagebox.showerror("Error", "Invalid repository path.")
-            return
-
-        self.output_textbox.configure(state="normal")
-        self.output_textbox.delete(1.0, ctk.END)
-
-        for index in selected_indices:
-            selected_credential = self.credentials[index]
-            try:
-                # Check if the directory is already a Git repository
-                if not os.path.isdir(os.path.join(repo_path, ".git")):
-                    init_result = subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True, text=True)
-                    self.output_textbox.insert(ctk.END, init_result.stdout + '\n')
-
-                config_name_result = subprocess.run(["git", "config", "--local", "user.name", selected_credential["username"]], cwd=repo_path, check=True, capture_output=True, text=True)
-                self.output_textbox.insert(ctk.END, config_name_result.stdout + '\n')
-
-                config_email_result = subprocess.run(["git", "config", "--local", "user.email", f"{selected_credential['username']}@example.com"], cwd=repo_path, check=True, capture_output=True, text=True)
-                self.output_textbox.insert(ctk.END, config_email_result.stdout + '\n')
-
-                remote_result = subprocess.run(["git", "remote", "add", "origin", selected_credential["url"]], cwd=repo_path, check=True, capture_output=True, text=True)
-                self.output_textbox.insert(ctk.END, remote_result.stdout + '\n')
-
-                self.output_textbox.insert(ctk.END, "Repository configured successfully.\n")
-            except subprocess.CalledProcessError as e:
-                self.output_textbox.insert(ctk.END, "Error: " + e.stderr + '\n')
-
-        self.output_textbox.configure(state="disabled")
+    def run_git_command(self, command, repo_path):
+        result = subprocess.run(command, cwd=repo_path, capture_output=True, text=True, shell=True)
+        if result.returncode == 0:
+            self.terminal_output.insert("end", f"Output:\n{result.stdout}\n")
+        else:
+            self.terminal_output.insert("end", f"Error:\n{result.stderr}\n")
+        self.terminal_output.see("end")
 
 if __name__ == "__main__":
-    app = GitCredentialManager()
+    app = GitManagerApp()
     app.mainloop()
