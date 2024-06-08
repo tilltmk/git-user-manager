@@ -1,6 +1,6 @@
-# Git Credential Manager 🌟
+# Git Credential Manager 👨‍💻
 
-![Git Credential Manager](https://img.shields.io/badge/Git%20Credential%20Manager-v1.1.0-blue)
+![Git Credential Manager](https://img.shields.io/badge/Git%20Credential%20Manager-v2.0-red)
 
 ## 📜 Description
 
@@ -21,6 +21,9 @@ git-user-manager/
 │
 ├── git_user_manager.py   # Main application file
 ├── credentials.json      # JSON file to store credentials (auto-generated)
+├── GitUserManager.desktop   # Desktop entry file
+├── icon.png              # Application icon
+├── install.sh            # Installation script
 └── README.md             # This readme file
 ```
 
@@ -43,9 +46,15 @@ Ensure you have Python installed on your system. You can download it from [pytho
     pip install customtkinter
     ```
 
-3. **Running the Application**:
+3. **Package the Application**:
     ```shell
-    python git_user_manager.py
+    pyinstaller --onefile --name GitUserManager --icon=icon.png git_user_manager.py
+    ```
+
+4. **Run the Installation Script**:
+    ```shell
+    chmod +x install.sh
+    ./install.sh
     ```
 
 ### Linux Installation
@@ -108,7 +117,7 @@ python git_user_manager.py
     - Select the credential(s) you wish to use.
     - Click the `Manage Repos` button.
     - Enter the repository path and submit.
-    
+
     The repository will be configured with the selected credentials, including username, email, and remote URL.
 
 ## 🛠️ Methods Overview
