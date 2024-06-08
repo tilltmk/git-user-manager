@@ -36,6 +36,9 @@ class GitManagerApp(ctk.CTk):
         self.add_repo_button = ctk.CTkButton(self.menu_frame, text="Add Repository", command=self.open_add_repo_window)
         self.add_repo_button.pack(side="left", padx=2)
 
+        self.edit_repo_button = ctk.CTkButton(self.menu_frame, text="Edit Repository", command=self.open_edit_repo_window)
+        self.edit_repo_button.pack(side="left", padx=2)
+
         self.settings_button = ctk.CTkButton(self.menu_frame, text="Settings", command=self.open_settings_window)
         self.settings_button.pack(side="left", padx=2)
         
@@ -78,51 +81,63 @@ class GitManagerApp(ctk.CTk):
         self.load_settings()
 
     def open_add_repo_window(self):
-        add_repo_window = ctk.CTkToplevel(self)
-        add_repo_window.title("Add Repository")
-        add_repo_window.geometry("400x600")
+        self.create_repo_window("Add Repository", self.add_repo)
 
-        dir_label = ctk.CTkLabel(add_repo_window, text="Local Directory")
+    def open_edit_repo_window(self):
+        selected_repo = self.get_selected_repo_dir()
+        if not selected_repo:
+            return
+        local_dir, remote_url, branch = selected_repo
+        self.create_repo_window("Edit Repository", self.edit_repo, local_dir, remote_url, branch)
+
+    def create_repo_window(self, title, command, local_dir="", remote_url="", branch="main"):
+        repo_window = ctk.CTkToplevel(self)
+        repo_window.title(title)
+        repo_window.geometry("400x600")
+
+        dir_label = ctk.CTkLabel(repo_window, text="Local Directory")
         dir_label.pack(pady=5)
 
-        dir_entry = ctk.CTkEntry(add_repo_window)
+        dir_entry = ctk.CTkEntry(repo_window)
         dir_entry.pack(pady=5)
+        dir_entry.insert(0, local_dir)
 
-        repo_label = ctk.CTkLabel(add_repo_window, text="Remote Repository URL")
+        repo_label = ctk.CTkLabel(repo_window, text="Remote Repository URL")
         repo_label.pack(pady=5)
 
-        repo_entry = ctk.CTkEntry(add_repo_window)
+        repo_entry = ctk.CTkEntry(repo_window)
         repo_entry.pack(pady=5)
+        repo_entry.insert(0, remote_url)
 
-        branch_label = ctk.CTkLabel(add_repo_window, text="Branch")
+        branch_label = ctk.CTkLabel(repo_window, text="Branch")
         branch_label.pack(pady=5)
 
-        branch_entry = ctk.CTkEntry(add_repo_window)
+        branch_entry = ctk.CTkEntry(repo_window)
         branch_entry.pack(pady=5)
-        branch_entry.insert(0, "main")  # Default branch
+        branch_entry.insert(0, branch)
 
-        user_label = ctk.CTkLabel(add_repo_window, text="Username")
+        user_label = ctk.CTkLabel(repo_window, text="Username")
         user_label.pack(pady=5)
 
-        user_entry = ctk.CTkEntry(add_repo_window)
+        user_entry = ctk.CTkEntry(repo_window)
         user_entry.pack(pady=5)
 
-        email_label = ctk.CTkLabel(add_repo_window, text="Email")
+        email_label = ctk.CTkLabel(repo_window, text="Email")
         email_label.pack(pady=5)
 
-        email_entry = ctk.CTkEntry(add_repo_window)
+        email_entry = ctk.CTkEntry(repo_window)
         email_entry.pack(pady=5)
 
-        pass_label = ctk.CTkLabel(add_repo_window, text="Password")
+        pass_label = ctk.CTkLabel(repo_window, text="Password")
         pass_label.pack(pady=5)
 
-        pass_entry = ctk.CTkEntry(add_repo_window, show="*")
+        pass_entry = ctk.CTkEntry(repo_window, show="*")
         pass_entry.pack(pady=5)
 
-        add_button = ctk.CTkButton(add_repo_window, text="Add", command=lambda: self.add_repo(dir_entry.get(), repo_entry.get(), branch_entry.get(), user_entry.get(), email_entry.get(), pass_entry.get(), add_repo_window))
-        add_button.pack(pady=10)
+        submit_button = ctk.CTkButton(repo_window, text="Submit", command=lambda: command(local_dir, dir_entry.get(), repo_entry.get(), branch_entry.get(), user_entry.get(), email_entry.get(), pass_entry.get(), repo_window))
+        submit_button.pack(pady=10)
 
-    def add_repo(self, local_dir, remote_url, branch, username, email, password, window):
+    def add_repo(self, old_local_dir, local_dir, remote_url, branch, username, email, password, window):
         if local_dir and remote_url and branch and username and email and password:
             keyring.set_password(remote_url, username, password)
 
@@ -155,6 +170,34 @@ class GitManagerApp(ctk.CTk):
 
             self.repo_listbox.insert("end", f"{local_dir} -> {remote_url} [{branch}]")
             self.save_repo(local_dir, remote_url, branch, username, email)
+            window.destroy()
+        else:
+            messagebox.showerror("Error", "All fields must be filled out")
+
+    def edit_repo(self, old_local_dir, local_dir, remote_url, branch, username, email, password, window):
+        if local_dir and remote_url and branch and username and email and password:
+            # Update the repository entry in the listbox and the file
+            for i in range(self.repo_listbox.size()):
+                entry = self.repo_listbox.get(i)
+                if old_local_dir in entry:
+                    self.repo_listbox.delete(i)
+                    self.repo_listbox.insert(i, f"{local_dir} -> {remote_url} [{branch}]")
+                    break
+
+            # Update the keyring with new credentials
+            keyring.set_password(remote_url, username, password)
+
+            # Set user information
+            self.set_git_user_info(local_dir, username, email)
+
+            # Configure the repository with the new access credentials
+            self.configure_git_credentials(local_dir, remote_url, username, password)
+
+            # Update the remote repository URL
+            remote_command = ["git", "remote", "set-url", "origin", remote_url]
+            subprocess.run(remote_command, cwd=local_dir)
+
+            self.save_repos_to_file()
             window.destroy()
         else:
             messagebox.showerror("Error", "All fields must be filled out")
