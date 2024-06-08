@@ -1,16 +1,17 @@
-# icon from: https://www.iconspedia.com/icon/user-black-folder-icon-36035.html
-# thanks to: Wil Nichols, http://wilnichols.com
-
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox
 import os
 import subprocess
 import keyring
+from keyrings.alt.file import PlaintextKeyring
 import sys
 import threading
 
 SSH_ENABLED = False
+
+# Set the keyring to PlaintextKeyring
+keyring.set_keyring(PlaintextKeyring())
 
 class GitManagerApp(ctk.CTk):
     def __init__(self):
@@ -158,11 +159,11 @@ class GitManagerApp(ctk.CTk):
         # Use credential helper to store credentials
         with open(os.path.join(local_dir, ".git", "config"), "a") as git_config:
             git_config.write(f"""
-    [credential]
-        helper = store
-    [url "{remote_url}"]
-        insteadOf = {remote_url}
-    """)
+[credential]
+    helper = store
+[url "{remote_url}"]
+    insteadOf = {remote_url}
+""")
         
         # Store the credentials in the git credential store
         creds_command = ["git", "credential", "approve"]
