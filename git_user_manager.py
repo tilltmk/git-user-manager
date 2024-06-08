@@ -1,3 +1,6 @@
+# icon from: https://www.iconspedia.com/icon/user-black-folder-icon-36035.html
+# thanks to: Wil Nichols, http://wilnichols.com
+
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox

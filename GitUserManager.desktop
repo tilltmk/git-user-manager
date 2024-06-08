@@ -1,0 +1,9 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Name=Git UserManager
+Comment=Manage your Git credentials and repositories
+Exec=~/.local/share/applications/GitUserManager
+Icon=~/.local/share/applications/icon.png
+Terminal=false
+Type=Application
+Categories=Utility;Development;
